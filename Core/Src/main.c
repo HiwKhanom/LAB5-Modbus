@@ -53,7 +53,7 @@ uint8_t FirstMenu[500] =
 				"             Press the number of choise               \r\n"
 				"===================================================== \r\n"
 				"                 0 : LED Control                      \r\n"
-				"                1 : button Status                     \r\n"
+				"                1 : Button Status                     \r\n"
 				"===================================================== \r\n";
 
 uint8_t SecondMenu[700] =
@@ -75,8 +75,9 @@ uint8_t ThirdMenu[300] =
 				"         Press 'x' to get to prevoius menu            \r\n"
 				"===================================================== \r\n";
 
-uint8_t Hz = 0;
-uint8_t PreHz = 0;
+int8_t Hz = 0;
+int8_t PreHz = 0;
+uint16_t Millis = 0;
 
 uint8_t TextState = 0;
 
@@ -148,7 +149,6 @@ int main(void) {
 
 		/* USER CODE BEGIN 3 */
 		static uint32_t timestamp = 0;
-		static uint16_t Millis = 0;
 		if (HAL_GetTick() > timestamp) {
 
 			if (Hz > 0) {
@@ -158,89 +158,123 @@ int main(void) {
 			}
 			timestamp = HAL_GetTick() + Millis;
 
-			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+			if(LedStatus == 0 || Hz == 0){
+				HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, RESET);
+			}
+			else{
+				HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
+			}
 		}
 
 		switch (TextState) {
 
 		case 0:
+			HAL_Delay(5);
 			HAL_UART_Transmit_IT(&huart2, FirstMenu, strlen((char*) FirstMenu));
 			TextState = 1;
 			break;
 		case 1:
-			if(RxBuffer[1] == '0'){
+			if(RxBuffer[0] == '0'){
+				RxBuffer[0] = 0;
 				TextState = 2;
 			}
-			else if(RxBuffer[1] == '1'){
+			else if(RxBuffer[0] == '1'){
+				RxBuffer[0] = 0;
 				TextState = 4;
-			}
-			else{
+			} /*
+			else if(RxBuffer[0] != 0 ){
+				HAL_Delay(5);
 				HAL_UART_Transmit_IT(&huart2, wrong, strlen((char*) wrong));
+				RxBuffer[0] = 0;
 				TextState = 1;
-			}
+			} */
 			break;
 
 
 		case 2:
+			HAL_Delay(5);
 			HAL_UART_Transmit_IT(&huart2, SecondMenu, strlen((char*) SecondMenu));
 			TextState = 3;
 			break;
 		case 3:
-			if (RxBuffer[1] == 'a') {
+			if (RxBuffer[0] == 'a') {
 				Hz += 1;
 				PreHz += 1;
+
 				TextState = 3;
+				RxBuffer[0] = 0;
+
 			}
-			else if (RxBuffer[1] == 's') {
+			else if (RxBuffer[0] == 's') {
 				Hz -= 1;
+				if(Hz <= 0){
+					Hz = 0;
+				}
 				PreHz -= 1;
+				if(PreHz <= 0){
+					PreHz = 0;
+				}
+
 				TextState = 3;
+				RxBuffer[0] = 0;
 			}
-			else if(RxBuffer[1] == 'd'){
+			else if(RxBuffer[0] == 'd'){
 				if(LedStatus){
 					LedStatus = 0;
+					RxBuffer[0] = 0;
+
 					Hz = 0;
 					HAL_UART_Transmit_IT(&huart2, LedOff, strlen((char*) LedOff));
+					HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, SET);
 				}
 				else{
 					LedStatus = 1;
+					RxBuffer[0] = 0;
+
 					Hz = PreHz;
 					HAL_UART_Transmit_IT(&huart2, LedOn, strlen((char*) LedOn));
 				}
 			}
-			else if(RxBuffer[1] == 'x'){
+			else if(RxBuffer[0] == 'x'){
+				RxBuffer[0] = 0;
 				TextState = 0;
-			}
-			else{
+			} /*
+			else if(RxBuffer[0] != 0 ){
+				RxBuffer[0] = 0;
+				HAL_Delay(5);
 				HAL_UART_Transmit_IT(&huart2, wrong, strlen((char*) wrong));
 				TextState = 3;
-			}
+			} */
 			break;
 
 
 		case 4:
+			HAL_Delay(5);
 			HAL_UART_Transmit_IT(&huart2, ThirdMenu, strlen((char*) ThirdMenu));
 			TextState = 5;
 			break;
 		case 5:
 			Button = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
 			if(Button == 1 && PreButton == 0){
-				HAL_UART_Transmit_IT(&huart2, Press, strlen((char*) Press));
+				HAL_UART_Transmit_IT(&huart2, unPress, strlen((char*) unPress));
 				OneTimePress = 0;
 			}
 			else if(Button == 0 && PreButton == 0){
 				if(!OneTimePress){
-					HAL_UART_Transmit_IT(&huart2, unPress, strlen((char*) unPress));
+					HAL_UART_Transmit_IT(&huart2, Press, strlen((char*) Press));
 					OneTimePress = 1;
 				}
 			}
-			else if (RxBuffer[1] == 'x'){
+			else if (RxBuffer[0] == 'x'){
+				RxBuffer[0] = 0;
 				TextState = 0;
-			}
-			else{
+			} /*
+			else if(RxBuffer[0] != 0){
+				HAL_Delay(5);
 				HAL_UART_Transmit_IT(&huart2, wrong, strlen((char*) wrong));
+				RxBuffer[0] = 0;
 				TextState = 5;
-			}
+			} */
 
 			PreButton = Button;
 			break;
