@@ -140,6 +140,7 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 
 	UARTInterruptConfig();
+	RxBuffer[0] = ' ';
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -169,43 +170,50 @@ int main(void) {
 		switch (TextState) {
 
 		case 0:
-			HAL_Delay(5);
 			HAL_UART_Transmit_IT(&huart2, FirstMenu, strlen((char*) FirstMenu));
 			TextState = 1;
 			break;
 		case 1:
-			if(RxBuffer[0] == '0'){
-				RxBuffer[0] = 0;
-				TextState = 2;
+			switch (RxBuffer[0]){
+
+			case ' ':
+				break;
+			case '0' :
+					RxBuffer[0] = ' ';
+					TextState = 2;
+				break;
+			case '1' :
+					RxBuffer[0] = ' ';
+					TextState = 4;
+				break;
+			default:
+					HAL_UART_Transmit_IT(&huart2, wrong, strlen((char*) wrong));
+					RxBuffer[0] = ' ';
+					TextState = 1;
+				break;
 			}
-			else if(RxBuffer[0] == '1'){
-				RxBuffer[0] = 0;
-				TextState = 4;
-			} /*
-			else if(RxBuffer[0] != 0 ){
-				HAL_Delay(5);
-				HAL_UART_Transmit_IT(&huart2, wrong, strlen((char*) wrong));
-				RxBuffer[0] = 0;
-				TextState = 1;
-			} */
 			break;
 
 
 		case 2:
-			HAL_Delay(5);
 			HAL_UART_Transmit_IT(&huart2, SecondMenu, strlen((char*) SecondMenu));
 			TextState = 3;
 			break;
 		case 3:
-			if (RxBuffer[0] == 'a') {
+			switch(RxBuffer[0]){
+
+			case ' ':
+				break;
+			case 'a':
 				Hz += 1;
 				PreHz += 1;
 
+				sprintf((char*) TxBuffer, "Now LED Blink %d Hz\r\n", Hz);
+				HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*) TxBuffer));
 				TextState = 3;
-				RxBuffer[0] = 0;
-
-			}
-			else if (RxBuffer[0] == 's') {
+				RxBuffer[0] = ' ';
+				break;
+			case 's' :
 				Hz -= 1;
 				if(Hz <= 0){
 					Hz = 0;
@@ -215,13 +223,15 @@ int main(void) {
 					PreHz = 0;
 				}
 
+				sprintf((char*) TxBuffer, "Now LED Blink %d Hz\r\n", Hz);
+				HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*) TxBuffer));
 				TextState = 3;
-				RxBuffer[0] = 0;
-			}
-			else if(RxBuffer[0] == 'd'){
+				RxBuffer[0] = ' ';
+				break;
+			case 'd':
 				if(LedStatus){
 					LedStatus = 0;
-					RxBuffer[0] = 0;
+					RxBuffer[0] = ' ';
 
 					Hz = 0;
 					HAL_UART_Transmit_IT(&huart2, LedOff, strlen((char*) LedOff));
@@ -229,27 +239,26 @@ int main(void) {
 				}
 				else{
 					LedStatus = 1;
-					RxBuffer[0] = 0;
+					RxBuffer[0] =' ';
 
 					Hz = PreHz;
 					HAL_UART_Transmit_IT(&huart2, LedOn, strlen((char*) LedOn));
 				}
-			}
-			else if(RxBuffer[0] == 'x'){
-				RxBuffer[0] = 0;
+				break;
+			case 'x':
+				RxBuffer[0] = ' ';
 				TextState = 0;
-			} /*
-			else if(RxBuffer[0] != 0 ){
-				RxBuffer[0] = 0;
-				HAL_Delay(5);
+				break;
+			default :
+				RxBuffer[0] = ' ';
 				HAL_UART_Transmit_IT(&huart2, wrong, strlen((char*) wrong));
 				TextState = 3;
-			} */
+				break;
+			}
 			break;
 
 
 		case 4:
-			HAL_Delay(5);
 			HAL_UART_Transmit_IT(&huart2, ThirdMenu, strlen((char*) ThirdMenu));
 			TextState = 5;
 			break;
@@ -265,17 +274,20 @@ int main(void) {
 					OneTimePress = 1;
 				}
 			}
-			else if (RxBuffer[0] == 'x'){
-				RxBuffer[0] = 0;
-				TextState = 0;
-			} /*
-			else if(RxBuffer[0] != 0){
-				HAL_Delay(5);
-				HAL_UART_Transmit_IT(&huart2, wrong, strlen((char*) wrong));
-				RxBuffer[0] = 0;
-				TextState = 5;
-			} */
+			switch(RxBuffer[0]){
 
+			case ' ':
+				break;
+			case 'x':
+				RxBuffer[0] = ' ';
+				TextState = 0;
+				break;
+			default:
+				HAL_UART_Transmit_IT(&huart2, wrong, strlen((char*) wrong));
+				RxBuffer[0] = ' ';
+				TextState = 5;
+				break;
+			}
 			PreButton = Button;
 			break;
 		}
@@ -400,7 +412,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		RxBuffer[2] = '\0';
 
 		sprintf((char*) TxBuffer, "Enter : %s\r\n", RxBuffer);
-		HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*) TxBuffer));
+		HAL_UART_Transmit(&huart2, TxBuffer, strlen((char*) TxBuffer), 100);
 
 		HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
 	}
